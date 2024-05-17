@@ -43,7 +43,7 @@ class SwitchCNet(nn.Module):
 
 		# Set up RNN
 		dropout_rate = opt.model_rnn_dropout_rate or 0
-		self.rnn = nn.GRU(input_size=opt.model_rnn_size, hidden_size=opt.model_rnn_size, 
+		self.rnn = nn.GRU(input_size=opt.model_rnn_size, hidden_size=opt.model_rnn_size, # gated recurrent unit
 			num_layers=opt.model_rnn_layers, dropout=dropout_rate, batch_first=True)
 
 		# Set up outputs
@@ -100,9 +100,9 @@ class SwitchCNet(nn.Module):
 			z_u = self.prev_action_lookup(prev_action)
 			if prev_message is not None:
 				z_u += self.prev_message_lookup(prev_message)
-		z_m = self.messages_mlp(messages.view(-1, self.comm_size))
+		z_m = self.messages_mlp(messages.view(-1, self.comm_size)) # TODO: What is the comm_size parameter
 
-		z = z_a + z_o + z_u + z_m
+		z = z_a + z_o + z_u + z_m # TODO: Is simmply adding the embeddings the best idea? Why not concat?
 		z = z.unsqueeze(1)
 
 		rnn_out, h_out = self.rnn(z, hidden)

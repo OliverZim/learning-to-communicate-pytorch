@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "learning-to-communicate-pytorch"
+version = "0.1.0"
+description = ""
+authors = ["OliverZim <oliver.zimmermann@student.hpi.de>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+cycler = "^0.12.1"
+kiwisolver = "^1.4.5"
+matplotlib = "^3.9.0"
+numpy = "^1.26.4"
+pandas = "^2.2.2"
+pillow = "^10.3.0"
+pyparsing = "^3.1.2"
+python-dateutil = "^2.9.0.post0"
+pytz = "^2024.1"
+six = "^1.16.0"
+torch = {version = "^2.3.0+cpu", source = "pytorch_cpu"}
+
+
+[[tool.poetry.source]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+flake8 = "^7.0.0"
+isort = "^5.13.2"
+mypy = "^1.10.0"
+pylint = "^3.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

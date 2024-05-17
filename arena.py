@@ -11,7 +11,7 @@ class Arena:
 	def __init__(self, opt, game):
 		self.opt = opt
 		self.game = game
-		self.eps = opt.eps
+		self.eps = opt.eps 
 
 	def create_episode(self):
 		opt = self.opt
@@ -23,11 +23,11 @@ class Arena:
 
 		return episode
 
-	def create_step_record(self):
+	def create_step_record(self):  # TODO: create_step_record - seems to create an empty experience object that is then filled during training
 		opt = self.opt
 		record = DotDic({})
-		record.s_t = None
-		record.r_t = torch.zeros(opt.bs, opt.game_nagents)
+		record.s_t = None # state in timestep t
+		record.r_t = torch.zeros(opt.bs, opt.game_nagents) # reward in timestep t
 		record.terminal = torch.zeros(opt.bs)
 
 		record.agent_inputs = []
@@ -35,14 +35,14 @@ class Arena:
 		# Track actions at time t per agent
 		record.a_t = torch.zeros(opt.bs, opt.game_nagents, dtype=torch.long)
 		if not opt.model_dial:
-			record.a_comm_t = torch.zeros(opt.bs, opt.game_nagents, dtype=torch.long)
+			record.a_comm_t = torch.zeros(opt.bs, opt.game_nagents, dtype=torch.long) # in case rial is used also communication actions are part of the experience - in dial they are not
 
 		# Track messages sent at time t per agent
 		if opt.comm_enabled:
 			comm_dtype = opt.model_dial and torch.float or torch.long
 			comm_dtype = torch.float
 			record.comm = torch.zeros(opt.bs, opt.game_nagents, opt.game_comm_bits, dtype=comm_dtype)
-			if opt.model_dial and opt.model_target:
+			if opt.model_dial and opt.model_target: # TODO: what are model and comm target
 				record.comm_target = record.comm.clone()
 
 		# Track hidden state per time t per agent
@@ -54,7 +54,7 @@ class Arena:
 		record.q_a_max_t = torch.zeros(opt.bs, opt.game_nagents)
 
 		# Track Q(m_t) and Q(m_max_t) per agent
-		if not opt.model_dial:
+		if not opt.model_dial: # again, if rial is used the messages are also eveluated via q network
 			record.q_comm_t = torch.zeros(opt.bs, opt.game_nagents)
 			record.q_comm_max_t = torch.zeros(opt.bs, opt.game_nagents)
 
@@ -68,11 +68,11 @@ class Arena:
 
 		step = 0
 		episode = self.create_episode()
-		s_t = game.get_state()
-		episode.step_records.append(self.create_step_record())
-		episode.step_records[-1].s_t = s_t
+		s_t = game.get_state() # begin by getting the env state
+		episode.step_records.append(self.create_step_record()) # I guess this is something like experience ( at this point initialized with only zeros)
+		episode.step_records[-1].s_t = s_t # -> In the new step we know the state the env had before
 		episode_steps = train_mode and opt.nsteps + 1 or opt.nsteps
-		while step < episode_steps and episode.ended.sum() < opt.bs:
+		while step < episode_steps and episode.ended.sum() < opt.bs:  # we stop the epsiode when enough steps were taken or each batch has already ended
 			episode.step_records.append(self.create_step_record())
 
 			for i in range(1, opt.game_nagents + 1):
@@ -82,10 +82,10 @@ class Arena:
 				comm = None
 				if opt.comm_enabled:
 					comm = episode.step_records[step].comm.clone()
-					comm_limited = self.game.get_comm_limited(step, agent.id)
+					comm_limited = self.game.get_comm_limited(step, agent.id) # TODO: get_comm_limited - What is comm limited?
 					if comm_limited is not None:
-						comm_lim = torch.zeros(opt.bs, 1, opt.game_comm_bits)
-						for b in range(opt.bs):
+						comm_lim = torch.zeros(opt.bs, 1, opt.game_comm_bits) # -> seems to be an option that communication can be limited to a certian number of bits
+						for b in range(opt.bs): 
 							if comm_limited[b].item() > 0:
 								comm_lim[b] = comm[b][comm_limited[b] - 1]
 						comm = comm_lim
@@ -97,7 +97,7 @@ class Arena:
 				if opt.model_action_aware:
 					prev_action = torch.ones(opt.bs, dtype=torch.long)
 					if not opt.model_dial:
-						prev_message = torch.ones(opt.bs, dtype=torch.long)
+						prev_message = torch.ones(opt.bs, dtype=torch.long) # in case rial is used we need to represent the messages as part of the action
 					for b in range(opt.bs):
 						if step > 0 and episode.step_records[step - 1].a_t[b, agent_idx] > 0:
 							prev_action[b] = episode.step_records[step - 1].a_t[b, agent_idx]
@@ -120,7 +120,7 @@ class Arena:
 				episode.step_records[step].agent_inputs.append(agent_inputs)
 
 				# Compute model output (Q function + message bits)
-				hidden_t, q_t = agent.model(**agent_inputs)
+				hidden_t, q_t = agent.model(**agent_inputs) # TODO: agent.model() - this does the actual inference -> very relevant (with knowledge sharing each agent has a reference to the same model here)
 				episode.step_records[step + 1].hidden[agent_idx] = hidden_t.squeeze()
 
 				# Choose next action and comm using eps-greedy selector
@@ -228,10 +228,10 @@ class Arena:
 			if verbose:
 				print('train epoch:', e, 'avg steps:', episode.steps.float().mean().item(), 'avg reward:', norm_r)
 			if opt.model_know_share:
-				agents[1].learn_from_episode(episode)
+				agents[1].learn_from_episode(episode) # TODO: learn_from_episode - if knowledge sharing is used this is somehow only needed to be done for one agent
 			else:
 				for agent in agents[1:]:
-					agent.learn_from_episode(episode)
+					agent.learn_from_episode(episode) # no knowledge sharing = all agents learn themselves
 
 			if e % opt.step_test == 0:
 				episode = self.run_episode(agents, train_mode=False)

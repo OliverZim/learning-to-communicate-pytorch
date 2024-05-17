@@ -7,6 +7,7 @@ from arena import Arena
 from agent import CNetAgent
 from switch.switch_game import SwitchGame
 from switch.switch_cnet import SwitchCNet
+import torch
 
 """
 Play communication games
@@ -40,7 +41,7 @@ def create_game(opt):
 	if game_name == 'switch':
 		return SwitchGame(opt)
 	else:
-		raise Exception('Unknown game: {}'.format(game_name))
+		raise Exception('Unknown game: {}'.format(game_name)) # Seems like they only implemented the switch game
 
 def create_cnet(opt):
 	game_name = opt.game.lower()
@@ -51,10 +52,12 @@ def create_cnet(opt):
 
 def create_agents(opt, game):
 	agents = [None] # 1-index agents
-	cnet = create_cnet(opt)
+	cnet = create_cnet(opt) # TODO: create_cnet - Understand the model and how it is created
 	cnet_target = copy.deepcopy(cnet)
 	for i in range(1, opt.game_nagents + 1):
-		agents.append(CNetAgent(opt, game=game, model=cnet, target=cnet_target, index=i))
+		agents.append(CNetAgent(opt, game=game, model=cnet, target=cnet_target, index=i))  # with no parameter sharing all agents use a reference to the same model!!!
+		# if no parameter sharing is used a CNet and a corresponding target is created for each agent
+		# TODO: Does not seem to work out of the box
 		if not opt.model_know_share:
 			cnet = create_cnet(opt)
 			cnet_target = copy.deepcopy(cnet)
@@ -68,8 +71,8 @@ def run_trial(opt, result_path=None, verbose=False):
 	# Initialize action and comm bit settings
 	opt = init_opt(opt)
 
-	game = create_game(opt)
-	agents = create_agents(opt, game)
+	game = create_game(opt) # creates the switch game
+	agents = create_agents(opt, game) # creates an agent with the corresponding cnet model and target
 	arena = Arena(opt, game)
 
 	test_callback = None
@@ -80,8 +83,7 @@ def run_trial(opt, result_path=None, verbose=False):
 		writer = csv.DictWriter(result_out, fieldnames=['episode', 'reward'])
 		writer.writeheader()
 		test_callback = partial(save_episode_and_reward_to_csv, result_out, writer)
-	arena.train(agents, verbose=verbose, test_callback=test_callback)
-
+	arena.train(agents, verbose=verbose, test_callback=test_callback) # TODO: arena.train - What ist the arena doing? What is an arena? -> Seems to be the relevant method for training.
 	if result_path:
 		result_out.close()
 
@@ -100,11 +102,12 @@ if __name__ == '__main__':
 	if args.results_path:
 		result_path = args.config_path and os.path.join(args.results_path, Path(args.config_path).stem) or \
 			os.path.join(args.results_path, 'result-', datetime.datetime.now().isoformat())
-
-	for i in range(args.ntrials):
-		trial_result_path = None
-		if result_path:
-			trial_result_path = result_path + '_' + str(i + args.start_index) + '.csv'
-		trial_opt = copy.deepcopy(opt)
-		run_trial(trial_opt, result_path=trial_result_path, verbose=args.verbose)
+		
+	with torch.autograd.set_detect_anomaly(True):
+		for i in range(args.ntrials):
+			trial_result_path = None
+			if result_path:
+				trial_result_path = result_path + '_' + str(i + args.start_index) + '.csv'
+			trial_opt = copy.deepcopy(opt)
+			run_trial(trial_opt, result_path=trial_result_path, verbose=args.verbose) # basically this is the relevant method for training. Everything else is just logging.
 

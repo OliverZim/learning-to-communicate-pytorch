@@ -18,13 +18,13 @@ class CNetAgent:
 		self.model = model
 		self.model_target = target
 
-		for p in self.model_target.parameters():
+		for p in self.model_target.parameters(): # TODO: Understand how model and model target relate to each other
 			p.requires_grad = False
 
 		self.episodes_seen = 0
 		self.dru = DRU(opt.game_comm_sigma, opt.model_comm_narrow, opt.game_comm_hard)
 		self.id = index
-		self.optimizer = optim.RMSprop(
+		self.optimizer = optim.RMSprop( 
 			params=model.get_params(), lr=opt.learningrate, momentum=opt.momentum)
 
 	def reset(self):
@@ -39,7 +39,7 @@ class CNetAgent:
 	def _random_choice(self, items):
 		return torch.from_numpy(np.random.choice(items, 1)).item()
 
-	def select_action_and_comm(self, step, q, eps=0, target=False, train_mode=False):
+	def select_action_and_comm(self, step, q, eps=0, target=False, train_mode=False):  # the q values are output by the model 
 		# eps-Greedy action selector
 		if not train_mode:
 			eps = 0
@@ -82,13 +82,13 @@ class CNetAgent:
 					comm_vector[b][comm_action[b]] = 1
 					comm_action[b] = comm_action[b] + 1
 				else:
-					comm_vector[b] = self.dru.forward(q[b, q_c_range], train_mode=train_mode) # apply DRU
+					comm_vector[b] = self.dru.forward(q[b, q_c_range], train_mode=train_mode) # apply DRU (discretized regularized unit)
 			elif (not opt.model_dial) and opt.model_avg_q and target:
 				comm_value[b], _ = q[b, q_a_range].max(0)
 
 		return (action, action_value), (comm_vector, comm_action, comm_value)
 
-	def episode_loss(self, episode):
+	def episode_loss(self, episode): # TODO: loss computation - how is the loss computed?
 		opt = self.opt
 		total_loss = torch.zeros(opt.bs)
 		for b in range(opt.bs):
@@ -132,15 +132,17 @@ class CNetAgent:
 		loss = loss/(self.opt.bs * self.opt.game_nagents)
 		return loss
 
+	
 	def learn_from_episode(self, episode):
 		self.optimizer.zero_grad()
 		loss = self.episode_loss(episode)
-		loss.backward(retain_graph=not self.opt.model_know_share)
+		loss.backward(retain_graph=not self.opt.model_know_share)  # use the retain graph option in case we do not use parameter sharing
+		# loss.backward()
 		clip_grad_norm_(parameters=self.model.get_params(), max_norm=10)
 		self.optimizer.step()
 
 		self.episodes_seen = self.episodes_seen + 1
-		if self.episodes_seen % self.opt.step_target == 0:
+		if self.episodes_seen % self.opt.step_target == 0: # after the target number of steps is reached the model target is updated to the current model
 			self.model_target.load_state_dict(self.model.state_dict())
 
 
