@@ -95,9 +95,9 @@ class SwitchGame:
 			comm_lim = torch.zeros(self.opt.bs, dtype=torch.long)
 			for b in range(self.opt.bs):
 				if step > 0 and agent_id == self.active_agent[b][step]:
-					comm_lim[b] = self.active_agent[b][step - 1]
+					comm_lim[b] = self.active_agent[b][step - 1]  # ensures that only the agent that was active in the previous step can communicate
 			return comm_lim
-		return None
+		return None # is the agent now allowed tp communicate or not?
 
 	def get_reward(self, a_t):
 		# Return reward for action a_t by active agent

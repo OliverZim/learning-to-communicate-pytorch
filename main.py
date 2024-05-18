@@ -72,7 +72,7 @@ def run_trial(opt, result_path=None, verbose=False):
 	opt = init_opt(opt)
 
 	game = create_game(opt) # creates the switch game
-	agents = create_agents(opt, game) # creates an agent with the corresponding cnet model and target
+	agents = create_agents(opt, game) # creates the agent with the corresponding cnet model and target (depends on wheter parameter sharing is used or not)
 	arena = Arena(opt, game)
 
 	test_callback = None
